@@ -13,7 +13,7 @@ alter table public.appointments
 
 create table if not exists public.notifications (
   id               uuid primary key default gen_random_uuid(),
-  professional_id  uuid not null references public.profiles (id) on delete cascade,
+  professional_id  uuid not null references public.professional_profiles (id) on delete cascade,
   appointment_id   uuid references public.appointments (id) on delete cascade,
   kind             text not null check (kind in ('confirmation','reminder')),
   channel          text not null default 'email' check (channel in ('email','whatsapp','sms')),
