@@ -101,7 +101,8 @@ estrutura.
   (assinado) **"Confirmar presença"**; ao clicar, marca `patient_confirmed_at` e a agenda
   mostra "✓ confirmada pelo paciente".
 - Os **lembretes** são criados/enviados pelo cron `GET /api/cron/reminders` (config em
-  `vercel.json`, a cada 6h). Alternativa ao cron da Vercel: chamar essa URL pelo
+  `vercel.json`, 1x/dia — plano Hobby da Vercel só permite cron diário; com Pro dá pra
+  aumentar a frequência). Alternativa ao cron da Vercel: chamar essa URL pelo
   **pg_cron do Supabase** (útil no plano grátis).
 
 ### Como ativar o e-mail (agora)
