@@ -8,6 +8,7 @@ export default function PainelNav() {
       <Link href="/painel/pacientes">Pacientes</Link>
       <Link href="/painel/financeiro">Financeiro</Link>
       <Link href="/painel/programas">Programas</Link>
+      <Link href="/painel/formularios">Formulários</Link>
       <Link href="/painel/relatorios">Relatórios</Link>
     </nav>
   );

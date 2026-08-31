@@ -3,9 +3,13 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { addClinicalNote, addFamilyNode, addFamilyRelation, deleteFamilyNode, addSessionRecord } from "@/app/painel/actions";
+import { sendFormAssignment, deleteFormAssignment } from "@/app/painel/formularios/actions";
 import DocumentUpload from "@/components/DocumentUpload";
 import FamilyTree from "@/components/FamilyTree";
 import { fmtDateTime, fmtDate, APPT_STATUS_LABEL } from "@/lib/format";
+
+const RESPONDENT_LABEL: Record<string, string> = { professional: "você preenche", patient: "paciente preenche" };
+const FORM_STATUS_LABEL: Record<string, string> = { pending: "pendente", completed: "concluído" };
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +39,13 @@ export default async function PatientDetail({ params }: { params: { id: string }
   // Registros de sessão (prontuário estruturado, confidencial).
   const { data: sessions } = await supabase.from("session_records")
     .select("*").eq("patient_id", params.id).order("session_date", { ascending: false });
+
+  // Formulários enviados/preenchidos + modelos disponíveis para envio.
+  const [{ data: formAssignments }, { data: formTemplates }] = await Promise.all([
+    supabase.from("form_assignments").select("id, title, respondent, status")
+      .eq("patient_id", params.id).order("assigned_at", { ascending: false }),
+    supabase.from("form_templates").select("id, title"),
+  ]);
 
   // Financeiro individual do paciente (transações ligadas às sessões deste paciente).
   const { data: patientAppts } = await supabase.from("appointments").select("id").eq("patient_id", params.id);
@@ -220,6 +231,68 @@ export default async function PatientDetail({ params }: { params: { id: string }
 
               <button className="btn btn--primary" type="submit">Salvar registro</button>
             </form>
+          </details>
+        </section>
+
+        {/* Formulários */}
+        <section style={{ marginTop: "2rem" }}>
+          <p className="eyebrow">Formulários</p>
+          <p className="count-note">Questionários customizados — preenchidos por você ou enviados para o paciente responder.</p>
+
+          {(formAssignments ?? []).map((a) => (
+            <div className="list-row" key={a.id}>
+              <div>
+                <strong>{a.title}</strong>
+                <div className="meta-line">{RESPONDENT_LABEL[a.respondent] ?? a.respondent} · {FORM_STATUS_LABEL[a.status] ?? a.status}</div>
+              </div>
+              <div style={{ display: "flex", gap: ".5em" }}>
+                {a.respondent === "professional" && (
+                  <Link className="btn btn--ghost" href={`/painel/formularios/preencher/${a.id}`} style={{ padding: ".4em .9em" }}>
+                    {a.status === "completed" ? "Ver/editar" : "Preencher"}
+                  </Link>
+                )}
+                {a.respondent === "patient" && a.status !== "completed" && (
+                  <span className="pill">aguardando o paciente</span>
+                )}
+                <form action={deleteFormAssignment.bind(null, a.id, patient.id)}>
+                  <button className="btn btn--quiet" type="submit">Remover</button>
+                </form>
+              </div>
+            </div>
+          ))}
+
+          <details className="card" style={{ marginTop: "1rem" }}>
+            <summary style={{ cursor: "pointer", fontFamily: "var(--font-display)" }}>Enviar formulário</summary>
+            {(!formTemplates || formTemplates.length === 0) ? (
+              <p className="count-note" style={{ marginTop: ".8em" }}>
+                Nenhum modelo disponível ainda. Crie um em <Link href="/painel/formularios">Formulários</Link>.
+              </p>
+            ) : (
+              <form action={sendFormAssignment.bind(null, patient.id)} style={{ marginTop: "1rem" }}>
+                <div className="grid">
+                  <div className="field"><label>Modelo</label>
+                    <select className="input" name="template_id" required defaultValue="">
+                      <option value="" disabled>Selecione…</option>
+                      {formTemplates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Quem preenche</label>
+                    <select className="input" name="respondent" required defaultValue="professional">
+                      <option value="professional">Eu (profissional)</option>
+                      <option value="patient" disabled={!patient.client_user_id}>
+                        O paciente{!patient.client_user_id ? " — sem conta vinculada" : ""}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                {!patient.client_user_id && (
+                  <p className="count-note">
+                    Este paciente não tem conta vinculada — só é possível enviar formulários que você mesmo preenche.
+                  </p>
+                )}
+                <button className="btn btn--primary" type="submit">Enviar</button>
+              </form>
+            )}
           </details>
         </section>
 

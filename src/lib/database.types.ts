@@ -218,6 +218,36 @@ export type Database = {
         Update: { session_date?: string; mood_scale?: number | null; mood_notes?: string | null; risk_level?: string | null; risk_notes?: string | null; medication_notes?: string | null; sleep_notes?: string | null; eating_notes?: string | null; physical_notes?: string | null; mobility_notes?: string | null; social_notes?: string | null; general_notes?: string | null };
         Relationships: [];
       };
+      form_templates: {
+        Row: { id: string; author_id: string | null; title: string; description: string | null; category: string | null; default_respondent: string; status: string; created_at: string };
+        Insert: { title: string; author_id?: string | null; description?: string | null; category?: string | null; default_respondent?: string; status?: string };
+        Update: { title?: string; description?: string | null; category?: string | null; default_respondent?: string; status?: string };
+        Relationships: [];
+      };
+      form_template_questions: {
+        Row: { id: string; template_id: string; author_id: string | null; section: string | null; position: number; kind: string; label: string; help_text: string | null; options: unknown | null; required: boolean; created_at: string };
+        Insert: { template_id: string; kind: string; label: string; author_id?: string | null; section?: string | null; position?: number; help_text?: string | null; options?: unknown | null; required?: boolean };
+        Update: { section?: string | null; position?: number; kind?: string; label?: string; help_text?: string | null; options?: unknown | null; required?: boolean };
+        Relationships: [];
+      };
+      form_assignments: {
+        Row: { id: string; professional_id: string; patient_id: string; patient_user_id: string | null; template_id: string | null; title: string; description: string | null; respondent: string; status: string; assigned_at: string; completed_at: string | null };
+        Insert: { professional_id: string; patient_id: string; title: string; respondent: string; patient_user_id?: string | null; template_id?: string | null; description?: string | null; status?: string; completed_at?: string | null };
+        Update: { title?: string; description?: string | null; status?: string; completed_at?: string | null };
+        Relationships: [];
+      };
+      form_assignment_questions: {
+        Row: { id: string; assignment_id: string; professional_id: string; patient_user_id: string | null; section: string | null; position: number; kind: string; label: string; help_text: string | null; options: unknown | null; required: boolean; created_at: string };
+        Insert: { assignment_id: string; professional_id: string; kind: string; label: string; patient_user_id?: string | null; section?: string | null; position?: number; help_text?: string | null; options?: unknown | null; required?: boolean };
+        Update: { section?: string | null; position?: number; kind?: string; label?: string; help_text?: string | null; options?: unknown | null; required?: boolean };
+        Relationships: [];
+      };
+      form_responses: {
+        Row: { id: string; assignment_question_id: string; assignment_id: string; professional_id: string; patient_user_id: string | null; value_text: string | null; value_number: number | null; value_bool: boolean | null; answered_at: string; updated_at: string };
+        Insert: { assignment_question_id: string; assignment_id: string; professional_id: string; patient_user_id?: string | null; value_text?: string | null; value_number?: number | null; value_bool?: boolean | null; answered_at?: string; updated_at?: string };
+        Update: { value_text?: string | null; value_number?: number | null; value_bool?: boolean | null; updated_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

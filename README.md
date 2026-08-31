@@ -148,11 +148,23 @@ física, mobilidade, saúde social e observações gerais. Confidencial — só 
 dono acessa (validado: paciente e admin não veem). Ao registrar risco elevado, o sistema
 lembra o profissional de plano de segurança e do CVV 188. Rode a `0006` após as demais.
 
+## Prontuário clínico — construtor de formulários (incluído, 2º bloco)
+Migration `supabase/migrations/0007_custom_forms.sql`. O profissional cria modelos de
+formulário em **/painel/formularios** (perguntas de texto curto/longo, escala 0–10,
+múltipla escolha ou sim/não, agrupadas em seções, reordenáveis) e, na ficha do paciente,
+**envia** um modelo escolhendo quem responde: **você mesmo** (preenche em
+`/painel/formularios/preencher/[id]`, como um registro de sessão) ou **o paciente**
+(responde em `/meus-formularios` — só possível se o paciente tiver conta vinculada).
+Já vem com um modelo de sistema pronto, **Anamnese padrão** (dados pessoais, queixa e
+história, sintomas atuais, blocos por área da vida), editável como qualquer outro. Mesmo
+isolamento das demais tabelas clínicas: profissional dono sempre acessa; paciente só lê/
+responde o que foi endereçado a ele; admin não vê nada disso. Rode a `0007` após a `0006`.
+
 ### Prontuário clínico — próximos blocos (a construir)
-- Anamnese com seções pré-definidas e perguntas editáveis; área do paciente com dados
-  pessoais, história de vida, queixa, sintomas e blocos por área da vida.
-- Diários de pensamentos (paciente) com pergunta norteadora ajustável pelo profissional.
-- Construtor de formulários/questionários para enviar ao paciente; enquetes no feed.
+- Diários de pensamentos (paciente) com pergunta norteadora ajustável pelo profissional
+  (pode reaproveitar a mesma estrutura de formulários, com o profissional definindo 1
+  pergunta fixa por diário).
+- Enquetes no feed.
 
 ## A fazer
 - Substituir as fontes substitutas (Spectral/Sacramento) pelas licenciadas
