@@ -51,9 +51,9 @@ export type Database = {
         Relationships: [];
       };
       patients: {
-        Row: { id: string; professional_id: string; client_user_id: string | null; full_name: string; birth_date: string | null; email: string | null; phone: string | null; notes_summary: string | null; created_at: string; updated_at: string };
-        Insert: { professional_id: string; full_name: string; client_user_id?: string | null; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null };
-        Update: { full_name?: string; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null };
+        Row: { id: string; professional_id: string; client_user_id: string | null; full_name: string; birth_date: string | null; email: string | null; phone: string | null; notes_summary: string | null; avatar_url: string | null; gender: string | null; address: string | null; occupation: string | null; marital_status: string | null; emergency_contact_name: string | null; emergency_contact_phone: string | null; created_at: string; updated_at: string };
+        Insert: { professional_id: string; full_name: string; client_user_id?: string | null; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null };
+        Update: { full_name?: string; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null };
         Relationships: [];
       };
       appointments: {
@@ -69,9 +69,9 @@ export type Database = {
         Relationships: [];
       };
       documents: {
-        Row: { id: string; professional_id: string; patient_id: string; doc_type: Database["public"]["Enums"]["document_type"]; title: string | null; storage_path: string; created_at: string };
-        Insert: { professional_id: string; patient_id: string; storage_path: string; doc_type?: Database["public"]["Enums"]["document_type"]; title?: string | null };
-        Update: { title?: string | null; doc_type?: Database["public"]["Enums"]["document_type"] };
+        Row: { id: string; professional_id: string; patient_id: string; doc_type: Database["public"]["Enums"]["document_type"]; title: string | null; storage_path: string; category: string; description: string | null; created_at: string };
+        Insert: { professional_id: string; patient_id: string; storage_path: string; doc_type?: Database["public"]["Enums"]["document_type"]; title?: string | null; category?: string; description?: string | null };
+        Update: { title?: string | null; doc_type?: Database["public"]["Enums"]["document_type"]; category?: string; description?: string | null };
         Relationships: [];
       };
       financial_transactions: {
@@ -246,6 +246,24 @@ export type Database = {
         Row: { id: string; assignment_question_id: string; assignment_id: string; professional_id: string; patient_user_id: string | null; value_text: string | null; value_number: number | null; value_bool: boolean | null; answered_at: string; updated_at: string };
         Insert: { assignment_question_id: string; assignment_id: string; professional_id: string; patient_user_id?: string | null; value_text?: string | null; value_number?: number | null; value_bool?: boolean | null; answered_at?: string; updated_at?: string };
         Update: { value_text?: string | null; value_number?: number | null; value_bool?: boolean | null; updated_at?: string };
+        Relationships: [];
+      };
+      contract_templates: {
+        Row: { id: string; author_id: string | null; title: string; body: string; version: number; status: string; created_at: string };
+        Insert: { title: string; body: string; author_id?: string | null; version?: number; status?: string };
+        Update: { title?: string; body?: string; version?: number; status?: string };
+        Relationships: [];
+      };
+      contract_assignments: {
+        Row: { id: string; professional_id: string; patient_id: string; patient_user_id: string | null; title: string; body: string; version: number; status: string; sent_at: string; created_at: string };
+        Insert: { professional_id: string; patient_id: string; title: string; body: string; patient_user_id?: string | null; version?: number; status?: string; sent_at?: string };
+        Update: { status?: string };
+        Relationships: [];
+      };
+      contract_acceptances: {
+        Row: { id: string; assignment_id: string; patient_user_id: string; accepted_meta: string | null; accepted_at: string; created_at: string };
+        Insert: { assignment_id: string; patient_user_id: string; accepted_meta?: string | null; accepted_at?: string };
+        Update: Record<string, never>;
         Relationships: [];
       };
     };

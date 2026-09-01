@@ -3,12 +3,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { DOC_CATEGORY_LABEL, type DocCategory } from "@/lib/labels";
 
 export default function DocumentUpload({ patientId }: { patientId: string }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<DocCategory>("outro");
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -27,7 +29,7 @@ export default function DocumentUpload({ patientId }: { patientId: string }) {
     if (up.error) { setBusy(false); setError("Falha no upload. Verifique se o bucket 'patient-documents' existe."); return; }
 
     const { error: metaErr } = await supabase.from("documents").insert({
-      professional_id: user.id, patient_id: patientId, storage_path: path, title: file.name,
+      professional_id: user.id, patient_id: patientId, storage_path: path, title: file.name, category,
     });
     if (metaErr) setError("Arquivo enviado, mas não foi possível registrar o documento.");
     setBusy(false);
@@ -36,10 +38,16 @@ export default function DocumentUpload({ patientId }: { patientId: string }) {
   }
 
   return (
-    <div style={{ marginTop: ".8em" }}>
+    <div style={{ marginTop: ".8em", display: "flex", gap: ".8em", alignItems: "center", flexWrap: "wrap" }}>
+      <select className="input" value={category} onChange={(e) => setCategory(e.target.value as DocCategory)}
+        disabled={busy} style={{ width: "auto" }}>
+        {Object.entries(DOC_CATEGORY_LABEL).map(([value, label]) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
       <input ref={inputRef} type="file" onChange={onFile} disabled={busy}
         style={{ fontFamily: "var(--font-body)", color: "var(--ink-soft)" }} />
-      {busy && <span className="count-note"> enviando…</span>}
+      {busy && <span className="count-note">enviando…</span>}
       {error && <p className="error">{error}</p>}
     </div>
   );

@@ -2,14 +2,18 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { addClinicalNote, addFamilyNode, addFamilyRelation, deleteFamilyNode, addSessionRecord } from "@/app/painel/actions";
+import { addClinicalNote, addFamilyNode, addFamilyRelation, deleteFamilyNode, addSessionRecord, updatePatientProfile } from "@/app/painel/actions";
 import { sendFormAssignment, deleteFormAssignment } from "@/app/painel/formularios/actions";
+import { sendContractAssignment, deleteContractAssignment } from "@/app/painel/contratos/actions";
 import DocumentUpload from "@/components/DocumentUpload";
+import AvatarUpload from "@/components/AvatarUpload";
 import FamilyTree from "@/components/FamilyTree";
 import { fmtDateTime, fmtDate, APPT_STATUS_LABEL } from "@/lib/format";
+import { DOC_CATEGORY_LABEL } from "@/lib/labels";
 
 const RESPONDENT_LABEL: Record<string, string> = { professional: "você preenche", patient: "paciente preenche" };
 const FORM_STATUS_LABEL: Record<string, string> = { pending: "pendente", completed: "concluído" };
+const CONTRACT_STATUS_LABEL: Record<string, string> = { pending: "pendente", accepted: "aceito" };
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +39,28 @@ export default async function PatientDetail({ params }: { params: { id: string }
     const { data } = await supabase.storage.from("patient-documents").createSignedUrl(d.storage_path, 120);
     if (data?.signedUrl) signed.set(d.id, data.signedUrl);
   }
+  // Documentos agrupados por categoria, na ordem definida em DOC_CATEGORY_LABEL.
+  const docsByCategory = new Map<string, typeof docs>();
+  for (const cat of Object.keys(DOC_CATEGORY_LABEL)) docsByCategory.set(cat, []);
+  for (const d of docs ?? []) {
+    const list = docsByCategory.get(d.category) ?? docsByCategory.get("outro")!;
+    list.push(d);
+  }
+
+  // Avatar (bucket privado 'patient-avatars') — URL assinada, nunca pública.
+  let avatarSignedUrl: string | null = null;
+  if (patient.avatar_url) {
+    const { data } = await supabase.storage.from("patient-avatars").createSignedUrl(patient.avatar_url, 120);
+    avatarSignedUrl = data?.signedUrl ?? null;
+  }
+
+  // Contrato terapêutico: histórico enviado a este paciente + modelo ativo do profissional.
+  const [{ data: contracts }, { data: ownContractTemplate }] = await Promise.all([
+    supabase.from("contract_assignments").select("id, title, status, sent_at")
+      .eq("patient_id", params.id).order("sent_at", { ascending: false }),
+    supabase.from("contract_templates").select("id").eq("author_id", me.user.id)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
 
   // Registros de sessão (prontuário estruturado, confidencial).
   const { data: sessions } = await supabase.from("session_records")
@@ -73,8 +99,125 @@ export default async function PatientDetail({ params }: { params: { id: string }
     <main className="page">
       <div className="wrap article">
         <p className="eyebrow"><Link href="/painel/pacientes" style={{ color: "inherit" }}>← Pacientes</Link></p>
-        <h1 style={{ fontFamily: "var(--font-display)" }}>{patient.full_name}</h1>
-        <div className="meta-line">{patient.phone ?? ""}{patient.email ? ` · ${patient.email}` : ""} <span className="dot" /> desde {fmtDate(patient.created_at)}</div>
+        <div style={{ display: "flex", gap: "1.2rem", alignItems: "center" }}>
+          {avatarSignedUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarSignedUrl} alt="" width={72} height={72}
+              style={{ borderRadius: "999px", objectFit: "cover", border: "1px solid var(--line-strong)" }} />
+          )}
+          <div>
+            <h1 style={{ fontFamily: "var(--font-display)" }}>{patient.full_name}</h1>
+            <div className="meta-line">{patient.phone ?? ""}{patient.email ? ` · ${patient.email}` : ""} <span className="dot" /> desde {fmtDate(patient.created_at)}</div>
+          </div>
+        </div>
+
+        {/* Perfil completo — EXIBIÇÃO VISUAL */}
+        <section style={{ marginTop: "2rem" }}>
+          <p className="eyebrow">Perfil</p>
+
+          {/* CARD DE DADOS PESSOAIS - EXIBIÇÃO */}
+          <div className="card" style={{ marginBottom: "1rem" }}>
+            <div className="kicker">Dados pessoais</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.2rem", marginTop: "1rem" }}>
+              {patient.birth_date && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>📅 Data de nascimento</div>
+                  <div style={{ fontWeight: 500 }}>{new Date(patient.birth_date).toLocaleDateString("pt-BR")}</div>
+                </div>
+              )}
+              {patient.gender && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>👤 Gênero</div>
+                  <div style={{ fontWeight: 500 }}>{patient.gender}</div>
+                </div>
+              )}
+              {patient.marital_status && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>💍 Estado civil</div>
+                  <div style={{ fontWeight: 500 }}>{patient.marital_status}</div>
+                </div>
+              )}
+              {patient.occupation && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>💼 Ocupação</div>
+                  <div style={{ fontWeight: 500 }}>{patient.occupation}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CARD DE CONTATO - EXIBIÇÃO */}
+          <div className="card" style={{ marginBottom: "1rem" }}>
+            <div className="kicker">Contato</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.2rem", marginTop: "1rem" }}>
+              {patient.email && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>📧 E-mail</div>
+                  <div style={{ fontWeight: 500, wordBreak: "break-word" }}>{patient.email}</div>
+                </div>
+              )}
+              {patient.phone && (
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-weak)", marginBottom: "0.3rem" }}>📱 Telefone</div>
+                  <div style={{ fontWeight: 500 }}>{patient.phone}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CARD DE ENDEREÇO - EXIBIÇÃO */}
+          {patient.address && (
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <div className="kicker">Endereço</div>
+              <div style={{ marginTop: "0.5rem", fontWeight: 500, whiteSpace: "pre-wrap" }}>
+                📍 {patient.address}
+              </div>
+            </div>
+          )}
+
+          {/* CARD DE CONTATO DE EMERGÊNCIA - EXIBIÇÃO */}
+          {(patient.emergency_contact_name || patient.emergency_contact_phone) && (
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <div className="kicker">Contato de emergência</div>
+              <div style={{ marginTop: "0.5rem" }}>
+                {patient.emergency_contact_name && (
+                  <div style={{ fontWeight: 500 }}>{patient.emergency_contact_name}</div>
+                )}
+                {patient.emergency_contact_phone && (
+                  <div style={{ fontSize: "0.9rem", color: "var(--text-weak)" }}>{patient.emergency_contact_phone}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* CARD DE FOTO - UPLOAD */}
+          <div className="card" style={{ marginBottom: "1rem" }}>
+            <div className="kicker">Foto do perfil</div>
+            <AvatarUpload patientId={patient.id} />
+            <p className="count-note" style={{ marginTop: ".5em" }}>Armazenada em bucket privado; exibida por URL assinada.</p>
+          </div>
+
+          {/* SEÇÃO DE EDIÇÃO - COLAPSÁVEL */}
+          <details className="card">
+            <summary style={{ cursor: "pointer", fontFamily: "var(--font-display)" }}>✏️ Editar dados do perfil</summary>
+            <form action={updatePatientProfile.bind(null, patient.id)} style={{ marginTop: "1rem" }}>
+              <div className="grid">
+                <div className="field"><label>Nome completo</label><input className="input" name="full_name" defaultValue={patient.full_name} required /></div>
+                <div className="field"><label>Data de nascimento</label><input className="input" type="date" name="birth_date" defaultValue={patient.birth_date ?? ""} /></div>
+                <div className="field"><label>Gênero</label><input className="input" name="gender" defaultValue={patient.gender ?? ""} /></div>
+                <div className="field"><label>Estado civil</label><input className="input" name="marital_status" defaultValue={patient.marital_status ?? ""} /></div>
+                <div className="field"><label>Telefone</label><input className="input" name="phone" defaultValue={patient.phone ?? ""} /></div>
+                <div className="field"><label>E-mail</label><input className="input" type="email" name="email" defaultValue={patient.email ?? ""} /></div>
+                <div className="field"><label>Profissão / ocupação</label><input className="input" name="occupation" defaultValue={patient.occupation ?? ""} /></div>
+                <div className="field"><label>Contato de emergência — nome</label><input className="input" name="emergency_contact_name" defaultValue={patient.emergency_contact_name ?? ""} /></div>
+                <div className="field"><label>Contato de emergência — telefone</label><input className="input" name="emergency_contact_phone" defaultValue={patient.emergency_contact_phone ?? ""} /></div>
+              </div>
+              <div className="field"><label>Endereço</label><input className="input" name="address" defaultValue={patient.address ?? ""} /></div>
+              <div className="field"><label>Observações administrativas</label><textarea className="input" name="notes_summary" rows={3} defaultValue={patient.notes_summary ?? ""} /></div>
+              <button className="btn btn--primary" type="submit">Salvar perfil</button>
+            </form>
+          </details>
+        </section>
 
         {/* Evoluções */}
         <section style={{ marginTop: "2rem" }}>
@@ -234,6 +377,37 @@ export default async function PatientDetail({ params }: { params: { id: string }
           </details>
         </section>
 
+        {/* Contrato terapêutico */}
+        <section style={{ marginTop: "2rem" }}>
+          <p className="eyebrow">Contrato</p>
+          {(!contracts || contracts.length === 0) ? (
+            <p className="count-note">Nenhum contrato enviado ainda.</p>
+          ) : contracts.map((c) => (
+            <div className="list-row" key={c.id}>
+              <div>
+                <strong>{c.title}</strong>
+                <div className="meta-line">
+                  <span className={"pill" + (c.status === "accepted" ? " ok" : "")}>{CONTRACT_STATUS_LABEL[c.status] ?? c.status}</span> · enviado em {fmtDate(c.sent_at)}
+                </div>
+              </div>
+              <form action={deleteContractAssignment.bind(null, c.id, patient.id)}>
+                <button className="btn btn--quiet" type="submit">Remover</button>
+              </form>
+            </div>
+          ))}
+          {ownContractTemplate ? (
+            <form action={sendContractAssignment} style={{ marginTop: "1rem" }}>
+              <input type="hidden" name="patient_id" value={patient.id} />
+              <input type="hidden" name="template_id" value={ownContractTemplate.id} />
+              <button className="btn btn--ghost" type="submit">Enviar contrato</button>
+            </form>
+          ) : (
+            <p className="count-note" style={{ marginTop: ".6em" }}>
+              Configure seu contrato-base em <Link href="/painel/contratos">Contratos</Link> antes de enviar.
+            </p>
+          )}
+        </section>
+
         {/* Formulários */}
         <section style={{ marginTop: "2rem" }}>
           <p className="eyebrow">Formulários</p>
@@ -302,14 +476,25 @@ export default async function PatientDetail({ params }: { params: { id: string }
           <p className="count-note">Laudos, anamneses, termos e recibos. Armazenados de forma privada; o link abre por tempo limitado.</p>
           <DocumentUpload patientId={patient.id} />
           <div style={{ marginTop: "1rem" }}>
-            {(!docs || docs.length === 0) ? <p className="count-note">Nenhum documento.</p> : docs.map((d) => (
-              <div className="list-row" key={d.id}>
-                <span className="meta-line">{d.title ?? d.storage_path}</span>
-                {signed.get(d.id)
-                  ? <a className="btn btn--ghost" href={signed.get(d.id)} target="_blank" rel="noopener noreferrer" style={{ padding: ".4em .9em" }}>Abrir</a>
-                  : <span className="pill">indisponível</span>}
-              </div>
-            ))}
+            {(!docs || docs.length === 0) ? <p className="count-note">Nenhum documento.</p> : (
+              Object.entries(DOC_CATEGORY_LABEL).map(([cat, label]) => {
+                const items = docsByCategory.get(cat);
+                if (!items || items.length === 0) return null;
+                return (
+                  <div key={cat} style={{ marginBottom: "1.2em" }}>
+                    <p className="kicker" style={{ marginBottom: ".4em" }}>{label}</p>
+                    {items.map((d) => (
+                      <div className="list-row" key={d.id}>
+                        <span className="meta-line">{d.title ?? d.storage_path}{d.description ? ` · ${d.description}` : ""}</span>
+                        {signed.get(d.id)
+                          ? <a className="btn btn--ghost" href={signed.get(d.id)} target="_blank" rel="noopener noreferrer" style={{ padding: ".4em .9em" }}>Abrir</a>
+                          : <span className="pill">indisponível</span>}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
       </div>

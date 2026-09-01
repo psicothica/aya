@@ -132,6 +132,37 @@ export async function addPatient(formData: FormData) {
   revalidatePath("/painel/pacientes");
 }
 
+// Atualiza os campos de perfil do paciente (ficha completa). Todos opcionais.
+export async function updatePatientProfile(patientId: string, formData: FormData) {
+  const me = await requirePro();
+  const supabase = createClient();
+  const str = (k: string) => { const v = String(formData.get(k) ?? "").trim(); return v || null; };
+  await supabase.from("patients").update({
+    full_name: str("full_name") ?? undefined,
+    birth_date: str("birth_date"),
+    gender: str("gender"),
+    phone: str("phone"),
+    email: str("email"),
+    address: str("address"),
+    occupation: str("occupation"),
+    marital_status: str("marital_status"),
+    emergency_contact_name: str("emergency_contact_name"),
+    emergency_contact_phone: str("emergency_contact_phone"),
+    notes_summary: str("notes_summary"),
+  }).eq("id", patientId).eq("professional_id", me.user.id);
+  revalidatePath(`/painel/pacientes/${patientId}`);
+}
+
+// Atualiza só o avatar (chamado após o upload no bucket privado 'patient-avatars').
+export async function updatePatientAvatar(patientId: string, storagePath: string) {
+  const me = await requirePro();
+  const supabase = createClient();
+  await supabase.from("patients").update({ avatar_url: storagePath })
+    .eq("id", patientId).eq("professional_id", me.user.id);
+  revalidatePath(`/painel/pacientes/${patientId}`);
+  revalidatePath("/painel/pacientes");
+}
+
 export async function addClinicalNote(patientId: string, formData: FormData) {
   const me = await requirePro();
   const content = String(formData.get("content") ?? "").trim();

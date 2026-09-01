@@ -28,3 +28,14 @@ export function professionLabel(p: Profession | null | undefined): string {
 export function modalityLabel(m: Modality): string {
   return MODALITY_LABELS[m] ?? m;
 }
+
+export type DocCategory = "prontuario" | "ficha_atendimento" | "laudo" | "exame" | "recibo" | "outro";
+
+export const DOC_CATEGORY_LABEL: Record<DocCategory, string> = {
+  prontuario: "Prontuário",
+  ficha_atendimento: "Ficha de atendimento",
+  laudo: "Laudo",
+  exame: "Exame",
+  recibo: "Recibo",
+  outro: "Outro",
+};

@@ -19,6 +19,7 @@ export default async function SiteHeader() {
           <Link href="/cursos">Cursos</Link>
           {me && <Link href="/meus-programas">Meus programas</Link>}
           {me && <Link href="/meus-formularios">Meus formulários</Link>}
+          {me && <Link href="/meus-contratos">Meus contratos</Link>}
           {isAuthor && <Link href="/feed/novo">Publicar</Link>}
           {isAdmin && <Link href="/admin/moderacao">Moderação</Link>}
         </nav>

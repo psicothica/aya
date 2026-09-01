@@ -15,8 +15,16 @@ export default async function PacientesPage() {
 
   const supabase = createClient();
   const { data: patients } = await supabase.from("patients")
-    .select("id, full_name, phone, created_at").eq("professional_id", me.user.id)
+    .select("id, full_name, phone, avatar_url, created_at").eq("professional_id", me.user.id)
     .order("created_at", { ascending: false });
+
+  // Avatares (bucket privado) — URL assinada, nunca pública.
+  const avatarSigned = new Map<string, string>();
+  for (const p of patients ?? []) {
+    if (!p.avatar_url) continue;
+    const { data } = await supabase.storage.from("patient-avatars").createSignedUrl(p.avatar_url, 120);
+    if (data?.signedUrl) avatarSigned.set(p.id, data.signedUrl);
+  }
 
   return (
     <main className="page">
@@ -39,7 +47,14 @@ export default async function PacientesPage() {
           <div className="empty">Nenhum paciente ainda. Eles surgem ao aceitar solicitações ou pelo cadastro acima.</div>
         ) : patients.map((p) => (
           <Link key={p.id} href={`/painel/pacientes/${p.id}`} className="list-row" style={{ textDecoration: "none", color: "inherit" }}>
-            <div><strong>{p.full_name}</strong><div className="meta-line">{p.phone ?? ""} <span className="dot" /> desde {fmtDate(p.created_at)}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: ".8em" }}>
+              {avatarSigned.get(p.id) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarSigned.get(p.id)} alt="" width={36} height={36}
+                  style={{ borderRadius: "999px", objectFit: "cover", border: "1px solid var(--line-strong)" }} />
+              ) : null}
+              <div><strong>{p.full_name}</strong><div className="meta-line">{p.phone ?? ""} <span className="dot" /> desde {fmtDate(p.created_at)}</div></div>
+            </div>
             <span className="pill">Abrir prontuário →</span>
           </Link>
         ))}

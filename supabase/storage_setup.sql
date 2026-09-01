@@ -26,6 +26,28 @@ with check (
 -- nunca expondo o bucket publicamente.
 
 -- =============================================================================
+-- Migration 0008 — Avatar/foto do paciente. Bucket PRIVADO (é dado sensível,
+-- diferente da mídia de posts do feed). Caminho por convenção:
+--   patient-avatars/{professional_id}/{patient_id}/{arquivo}
+-- Só o profissional dono acessa; entrega ao visualizar sempre via URL assinada.
+-- =============================================================================
+insert into storage.buckets (id, name, public)
+values ('patient-avatars', 'patient-avatars', false)
+on conflict (id) do nothing;
+
+drop policy if exists "prof_rw_own_patient_avatars" on storage.objects;
+create policy "prof_rw_own_patient_avatars"
+on storage.objects for all to authenticated
+using (
+  bucket_id = 'patient-avatars'
+  and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+  bucket_id = 'patient-avatars'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- =============================================================================
 -- Fase 3 — Mídia do feed. Bucket PÚBLICO (imagens de posts publicados são
 -- públicas). Escrita só por autenticado, na própria pasta; leitura pública.
 -- A moderação da imagem é humana: o post só vai ao ar após aprovação do admin.
