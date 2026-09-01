@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { pickChannel, whenText, dispatch } from "@/lib/notifications/send";
@@ -159,6 +160,36 @@ export async function updatePatientAvatar(patientId: string, storagePath: string
   const supabase = createClient();
   await supabase.from("patients").update({ avatar_url: storagePath })
     .eq("id", patientId).eq("professional_id", me.user.id);
+  revalidatePath(`/painel/pacientes/${patientId}`);
+  revalidatePath("/painel/pacientes");
+}
+
+// Ativa/desativa um paciente (soft delete leve — não some, só sai das
+// listagens padrão). Auditado em audit_deletions via service role, já que
+// essa tabela não aceita insert direto da sessão do profissional.
+export async function togglePatientActive(patientId: string) {
+  const me = await requirePro();
+  const supabase = createClient();
+  const { data: patient } = await supabase
+    .from("patients")
+    .select("is_active")
+    .eq("id", patientId)
+    .eq("professional_id", me.user.id)
+    .single();
+  if (!patient) throw new Error("Paciente não encontrado.");
+
+  const newStatus = !patient.is_active;
+  await supabase.from("patients").update({ is_active: newStatus }).eq("id", patientId);
+
+  const admin = createAdminClient();
+  await admin.from("audit_deletions").insert({
+    professional_id: me.user.id,
+    entity_type: "patient",
+    entity_id: patientId,
+    action: newStatus ? "restore" : "deactivate",
+    reason: newStatus ? "Reativado pelo profissional" : "Desativado pelo profissional",
+  });
+
   revalidatePath(`/painel/pacientes/${patientId}`);
   revalidatePath("/painel/pacientes");
 }

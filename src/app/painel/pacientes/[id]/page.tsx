@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { addClinicalNote, addFamilyNode, addFamilyRelation, deleteFamilyNode, addSessionRecord, updatePatientProfile } from "@/app/painel/actions";
+import { addClinicalNote, addFamilyNode, addFamilyRelation, deleteFamilyNode, addSessionRecord, updatePatientProfile, togglePatientActive } from "@/app/painel/actions";
 import { sendFormAssignment, deleteFormAssignment } from "@/app/painel/formularios/actions";
 import { sendContractAssignment, deleteContractAssignment } from "@/app/painel/contratos/actions";
 import DocumentUpload from "@/components/DocumentUpload";
@@ -109,6 +109,19 @@ export default async function PatientDetail({ params }: { params: { id: string }
             <h1 style={{ fontFamily: "var(--font-display)" }}>{patient.full_name}</h1>
             <div className="meta-line">{patient.phone ?? ""}{patient.email ? ` · ${patient.email}` : ""} <span className="dot" /> desde {fmtDate(patient.created_at)}</div>
           </div>
+        </div>
+
+        {/* Status ativo/inativo */}
+        <div style={{ marginTop: "1rem" }}>
+          <form action={togglePatientActive.bind(null, patient.id)}>
+            {patient.is_active ? (
+              <button className="btn btn--ghost" type="submit">✓ Ativo — desativar</button>
+            ) : (
+              <button className="btn btn--ghost" style={{ borderColor: "#ff6b6b", color: "#ff6b6b" }} type="submit">
+                ✗ Inativo — reativar
+              </button>
+            )}
+          </form>
         </div>
 
         {/* Perfil completo — EXIBIÇÃO VISUAL */}
