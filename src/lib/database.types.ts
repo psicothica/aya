@@ -51,9 +51,9 @@ export type Database = {
         Relationships: [];
       };
       patients: {
-        Row: { id: string; professional_id: string; client_user_id: string | null; full_name: string; birth_date: string | null; email: string | null; phone: string | null; notes_summary: string | null; avatar_url: string | null; gender: string | null; address: string | null; occupation: string | null; marital_status: string | null; emergency_contact_name: string | null; emergency_contact_phone: string | null; created_at: string; updated_at: string };
-        Insert: { professional_id: string; full_name: string; client_user_id?: string | null; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null };
-        Update: { full_name?: string; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null };
+        Row: { id: string; professional_id: string; client_user_id: string | null; full_name: string; birth_date: string | null; email: string | null; phone: string | null; notes_summary: string | null; avatar_url: string | null; gender: string | null; address: string | null; occupation: string | null; marital_status: string | null; emergency_contact_name: string | null; emergency_contact_phone: string | null; is_active: boolean; deleted_at: string | null; created_at: string; updated_at: string };
+        Insert: { professional_id: string; full_name: string; client_user_id?: string | null; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null; is_active?: boolean; deleted_at?: string | null };
+        Update: { full_name?: string; birth_date?: string | null; email?: string | null; phone?: string | null; notes_summary?: string | null; avatar_url?: string | null; gender?: string | null; address?: string | null; occupation?: string | null; marital_status?: string | null; emergency_contact_name?: string | null; emergency_contact_phone?: string | null; is_active?: boolean; deleted_at?: string | null };
         Relationships: [];
       };
       appointments: {
@@ -111,9 +111,9 @@ export type Database = {
         Relationships: [];
       };
       posts: {
-        Row: { id: string; author_id: string; title: string; body: string | null; media: unknown[]; category: string | null; tags: string[]; status: Database["public"]["Enums"]["post_status"]; moderated_by: string | null; moderated_at: string | null; published_at: string | null; created_at: string; updated_at: string };
+        Row: { id: string; author_id: string; title: string; body: string | null; media: unknown[]; category: string | null; tags: string[]; status: Database["public"]["Enums"]["post_status"]; moderated_by: string | null; moderated_at: string | null; published_at: string | null; deleted_at: string | null; deletion_reason: string | null; created_at: string; updated_at: string };
         Insert: { author_id: string; title: string; body?: string | null; media?: unknown[]; category?: string | null; tags?: string[]; status?: Database["public"]["Enums"]["post_status"] };
-        Update: { title?: string; body?: string | null; category?: string | null; tags?: string[]; status?: Database["public"]["Enums"]["post_status"]; moderated_by?: string | null; moderated_at?: string | null; published_at?: string | null };
+        Update: { title?: string; body?: string | null; category?: string | null; tags?: string[]; status?: Database["public"]["Enums"]["post_status"]; moderated_by?: string | null; moderated_at?: string | null; published_at?: string | null; deleted_at?: string | null; deletion_reason?: string | null };
         Relationships: [];
       };
       interactions: {
@@ -263,6 +263,12 @@ export type Database = {
       contract_acceptances: {
         Row: { id: string; assignment_id: string; patient_user_id: string; accepted_meta: string | null; accepted_at: string; created_at: string };
         Insert: { assignment_id: string; patient_user_id: string; accepted_meta?: string | null; accepted_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      audit_deletions: {
+        Row: { id: string; professional_id: string; entity_type: string; entity_id: string; action: string; reason: string | null; old_data: Record<string, unknown> | null; created_at: string };
+        Insert: { professional_id: string; entity_type: string; entity_id: string; action: string; reason?: string | null; old_data?: Record<string, unknown> | null };
         Update: Record<string, never>;
         Relationships: [];
       };
