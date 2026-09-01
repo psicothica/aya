@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfessionalProfile, signOut } from "@/app/actions";
 import PainelNav from "@/components/PainelNav";
+import { SessionQuickOpen } from "@/components/SessionQuickOpen";
 import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +40,20 @@ export default async function Painel() {
 async function ApprovedHome({ proId }: { proId: string }) {
   const supabase = createClient();
   const nowIso = new Date().toISOString();
-  const [reqs, appts, patients] = await Promise.all([
+  const [reqs, appts, patients, upcoming, patientNames] = await Promise.all([
     supabase.from("booking_requests").select("id", { count: "exact", head: true }).eq("professional_id", proId).eq("status", "requested"),
     supabase.from("appointments").select("id", { count: "exact", head: true }).eq("professional_id", proId).gte("starts_at", nowIso).eq("status", "scheduled"),
     supabase.from("patients").select("id", { count: "exact", head: true }).eq("professional_id", proId),
+    supabase.from("appointments").select("id, patient_id, starts_at, status")
+      .eq("professional_id", proId).gte("starts_at", nowIso).eq("status", "scheduled")
+      .order("starts_at", { ascending: true }).limit(20),
+    supabase.from("patients").select("id, full_name").eq("professional_id", proId),
   ]);
+  const nameById = new Map((patientNames.data ?? []).map((p) => [p.id, p.full_name]));
+  const quickSessions = (upcoming.data ?? []).map((a) => ({
+    id: a.id, patient_id: a.patient_id, starts_at: a.starts_at, status: a.status,
+    patient_name: nameById.get(a.patient_id) ?? "Paciente",
+  }));
 
   return (
     <>
@@ -53,6 +63,16 @@ async function ApprovedHome({ proId }: { proId: string }) {
         <div className="stat"><div className="n">{appts.count ?? 0}</div><div className="l">Sessões futuras</div></div>
         <div className="stat"><div className="n">{patients.count ?? 0}</div><div className="l">Pacientes</div></div>
       </div>
+
+      {quickSessions.length > 0 && (
+        <div className="card" style={{ marginBottom: "1.6rem" }}>
+          <div className="kicker">Acesso rápido</div>
+          <h3>Abrir uma sessão futura</h3>
+          <p className="sub" style={{ marginBottom: "1rem" }}>Selecione uma sessão agendada para ir direto ao prontuário do paciente.</p>
+          <SessionQuickOpen sessions={quickSessions} />
+        </div>
+      )}
+
       <div className="grid">
         <article className="card"><div className="kicker">Agenda</div><h3>Sessões e solicitações</h3><p className="sub">Confirme pedidos e acompanhe seus atendimentos.</p><Link className="btn btn--ghost" href="/painel/agenda" style={{ padding: ".5em 1em" }}>Abrir agenda</Link></article>
         <article className="card"><div className="kicker">Pacientes</div><h3>Prontuários e documentos</h3><p className="sub">Evoluções sigilosas, só suas.</p><Link className="btn btn--ghost" href="/painel/pacientes" style={{ padding: ".5em 1em" }}>Ver pacientes</Link></article>
