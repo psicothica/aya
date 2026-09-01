@@ -168,28 +168,51 @@ export async function updatePatientAvatar(patientId: string, storagePath: string
 // listagens padrão). Auditado em audit_deletions via service role, já que
 // essa tabela não aceita insert direto da sessão do profissional.
 export async function togglePatientActive(patientId: string) {
+  console.log("📍 [togglePatientActive] iniciando", patientId);
   const me = await requirePro();
+
   const supabase = createClient();
-  const { data: patient } = await supabase
+  const { data: patient, error: fetchError } = await supabase
     .from("patients")
     .select("is_active")
     .eq("id", patientId)
     .eq("professional_id", me.user.id)
     .single();
-  if (!patient) throw new Error("Paciente não encontrado.");
+
+  if (fetchError || !patient) {
+    // Causa mais provável se aparecer em produção: migration 0009 (que adiciona
+    // patients.is_active) ainda não foi aplicada no banco Supabase do projeto.
+    console.error("❌ [togglePatientActive] paciente não encontrado ou coluna is_active ausente", fetchError);
+    throw new Error(fetchError ? `Erro ao buscar paciente: ${fetchError.message}` : "Paciente não encontrado.");
+  }
 
   const newStatus = !patient.is_active;
-  await supabase.from("patients").update({ is_active: newStatus }).eq("id", patientId);
+  console.log(`📍 [togglePatientActive] is_active ${patient.is_active} → ${newStatus}`);
 
-  const admin = createAdminClient();
-  await admin.from("audit_deletions").insert({
-    professional_id: me.user.id,
-    entity_type: "patient",
-    entity_id: patientId,
-    action: newStatus ? "restore" : "deactivate",
-    reason: newStatus ? "Reativado pelo profissional" : "Desativado pelo profissional",
-  });
+  const { error: updateError } = await supabase
+    .from("patients").update({ is_active: newStatus }).eq("id", patientId);
+  if (updateError) {
+    console.error("❌ [togglePatientActive] erro ao atualizar", updateError);
+    throw new Error(`Erro ao atualizar paciente: ${updateError.message}`);
+  }
 
+  try {
+    const admin = createAdminClient();
+    const { error: auditError } = await admin.from("audit_deletions").insert({
+      professional_id: me.user.id,
+      entity_type: "patient",
+      entity_id: patientId,
+      action: newStatus ? "restore" : "deactivate",
+      reason: newStatus ? "Reativado pelo profissional" : "Desativado pelo profissional",
+    });
+    if (auditError) console.warn("⚠️ [togglePatientActive] audit falhou (não crítico)", auditError);
+  } catch (err) {
+    // Causa mais provável: migration 0009 (tabela audit_deletions) ausente, ou
+    // SUPABASE_SERVICE_ROLE_KEY não configurada no ambiente. Não bloqueia o toggle.
+    console.warn("⚠️ [togglePatientActive] audit falhou (não crítico)", err);
+  }
+
+  console.log("✅ [togglePatientActive] sucesso");
   revalidatePath(`/painel/pacientes/${patientId}`);
   revalidatePath("/painel/pacientes");
 }
