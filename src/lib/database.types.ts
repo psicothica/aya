@@ -272,6 +272,18 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      service_packages: {
+        Row: { id: string; professional_id: string; title: string; description: string | null; session_count: number | null; price_total: number | null; price_per_item: number | null; valid_days: number | null; status: Database["public"]["Enums"]["package_status"]; created_at: string; updated_at: string };
+        Insert: { professional_id: string; title: string; description?: string | null; session_count?: number | null; price_total?: number | null; price_per_item?: number | null; valid_days?: number | null; status?: Database["public"]["Enums"]["package_status"] };
+        Update: { title?: string; description?: string | null; session_count?: number | null; price_total?: number | null; price_per_item?: number | null; valid_days?: number | null; status?: Database["public"]["Enums"]["package_status"] };
+        Relationships: [];
+      };
+      patient_packages: {
+        Row: { id: string; patient_id: string; package_id: string; sessions_used: number; started_at: string; expires_at: string | null; status: string; created_at: string };
+        Insert: { patient_id: string; package_id: string; sessions_used?: number; started_at?: string; status?: string };
+        Update: { sessions_used?: number; status?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -296,6 +308,7 @@ export type Database = {
       post_status: "draft" | "pending_review" | "published" | "rejected" | "archived";
       interaction_type: "like" | "save" | "comment" | "report";
       favorite_target: "professional" | "activity" | "app";
+      package_status: "active" | "inactive" | "archived";
     };
   };
 };
